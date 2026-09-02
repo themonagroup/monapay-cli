@@ -1,5 +1,5 @@
 {
-  "name": "monapay",
+  "name": "@monapay/cli",
   "version": "0.1.0",
   "description": "CLI zero-dependency cho MONA Pay",
   "type": "module",
@@ -27,5 +27,10 @@
     "webhook",
     "cli"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/themonagroup/monapay-cli.git"
+  },
+  "homepage": "https://monapay.vn/docs"
 }
