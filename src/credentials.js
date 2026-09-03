@@ -15,6 +15,7 @@ export async function readCredentials({ env = process.env, path = credentialsPat
     if (error.code !== 'ENOENT') throw new Error(`Không đọc được credentials: ${error.message}`);
   }
   return {
+    clientId: env.MONAPAY_CLIENT_ID || stored.clientId,
     username: env.MONAPAY_USERNAME || stored.username,
     password: env.MONAPAY_PASSWORD || stored.password,
     clientSecret: env.MONAPAY_CLIENT_SECRET || stored.clientSecret,

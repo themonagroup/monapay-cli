@@ -10,11 +10,13 @@ Từ thư mục `cli/`, anh chị có thể link lệnh vào máy mà không t�
 
 ```bash
 npm link
-monapay login
+monapay login --client-id "$MONAPAY_CLIENT_ID" --client-secret "$MONAPAY_CLIENT_SECRET"
 monapay me
 ```
 
-`login` nhận `--username`, `--password`, `--secret` hoặc các biến `MONAPAY_USERNAME`, `MONAPAY_PASSWORD`, `MONAPAY_CLIENT_SECRET`. Giá trị còn thiếu sẽ được hỏi tương tác. Credentials nằm tại `~/.config/monapay/credentials.json`, thư mục có mode `700` và file có mode `600`. Có thể đổi thư mục bằng `MONAPAY_CONFIG_DIR`.
+`login` ưu tiên `--client-id`, `--client-secret` hoặc `MONAPAY_CLIENT_ID`, `MONAPAY_CLIENT_SECRET`; CLI đổi cặp này thành OAuth token và tự cache token theo hạn dùng. Giá trị còn thiếu sẽ được hỏi tương tác. Credentials nằm tại `~/.config/monapay/credentials.json`, thư mục có mode `700` và file có mode `600`. Có thể đổi thư mục bằng `MONAPAY_CONFIG_DIR`.
+
+Cách cũ `--username`, `--password` hoặc `MONAPAY_USERNAME`, `MONAPAY_PASSWORD` vẫn hoạt động. Nên dùng client credentials vì tài khoản bật 2FA không login bằng mật khẩu được.
 
 ## Các lệnh thường dùng
 

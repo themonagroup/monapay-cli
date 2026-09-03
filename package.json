@@ -1,6 +1,6 @@
 {
   "name": "@monapay/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CLI zero-dependency cho MONA Pay",
   "type": "module",
   "main": "./index.js",

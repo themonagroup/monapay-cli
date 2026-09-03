@@ -9,10 +9,11 @@ import { readCredentials, writeCredentials } from './credentials.js';
 import { qrPng } from './qrcode.js';
 import { listenForWebhooks } from './webhook-listener.js';
 
-const HELP = `MONA Pay CLI 0.1.0
+const HELP = `MONA Pay CLI 0.2.0
 
 Cách dùng:
-  monapay login [--username USER] [--password PASS] [--secret SECRET]
+  monapay login [--client-id ID] [--client-secret SECRET]
+  monapay login [--username USER] [--password PASS] [--secret SECRET]  # cách cũ
   monapay me [--json]
   monapay keys generate [--name NAME] [--json]
   monapay keys list [--json]
@@ -27,7 +28,8 @@ Cách dùng:
   monapay webhook listen [--port 3939] [--secret SECRET] [--forward URL]
 
 Biến môi trường chính:
-  MONAPAY_USERNAME, MONAPAY_PASSWORD, MONAPAY_CLIENT_SECRET, MONAPAY_WEBHOOK_SECRET
+  MONAPAY_CLIENT_ID, MONAPAY_CLIENT_SECRET (khuyến nghị)
+  MONAPAY_USERNAME, MONAPAY_PASSWORD (cách cũ), MONAPAY_WEBHOOK_SECRET
   MONAPAY_OWNER_NUMBER, MONAPAY_OWNER_TYPE, MONAPAY_MERCHANT_ID, MONAPAY_TERMINAL_ID
   MONAPAY_VA_PREFIX, MONAPAY_BENEFICIARY_NAME, MONAPAY_VA
 `;
@@ -66,13 +68,19 @@ function print(value, { json, stdout }) {
 }
 
 function makeClient(credentials, clientFactory) {
-  if (!credentials.username || !credentials.password) {
-    throw new Error('Chưa có tài khoản. Chạy `monapay login` hoặc đặt MONAPAY_USERNAME/MONAPAY_PASSWORD.');
+  const hasClientCredentials = Boolean(credentials.clientId && credentials.clientSecret);
+  const hasPasswordCredentials = Boolean(credentials.username && credentials.password);
+  if (!hasClientCredentials && !hasPasswordCredentials) {
+    throw new Error('Chưa có credentials. Chạy `monapay login` hoặc đặt MONAPAY_CLIENT_ID/MONAPAY_CLIENT_SECRET; nên dùng client_id/client_secret, tài khoản bật 2FA không login bằng mật khẩu được.');
   }
   return clientFactory({
-    username: credentials.username,
-    password: credentials.password,
-    clientSecret: credentials.clientSecret,
+    ...(hasClientCredentials
+      ? { clientId: credentials.clientId, clientSecret: credentials.clientSecret }
+      : {
+          username: credentials.username,
+          password: credentials.password,
+          ...(credentials.clientSecret ? { clientSecret: credentials.clientSecret } : {}),
+        }),
     baseUrl: credentials.baseUrl,
   });
 }
@@ -81,6 +89,28 @@ async function login(flags, context) {
   const current = await readCredentials({ env: context.env });
   const prompt = makePrompter(context.input, context.stdout);
   try {
+    const explicitlyLegacy = Boolean(flags.username || flags.password || context.env.MONAPAY_USERNAME || context.env.MONAPAY_PASSWORD);
+    const clientId = flags['client-id'] || context.env.MONAPAY_CLIENT_ID || current.clientId
+      || (!explicitlyLegacy ? await prompt.ask('Client ID (bỏ trống để dùng username/password): ') : undefined);
+    if (clientId) {
+      const clientSecret = flags['client-secret'] || flags.secret || context.env.MONAPAY_CLIENT_SECRET
+        || (clientId === current.clientId ? current.clientSecret : undefined)
+        || await prompt.ask('Client secret: ', { secret: true });
+      required(clientSecret, 'client secret');
+      const credentials = {
+        clientId,
+        clientSecret,
+        baseUrl: flags['base-url'] || context.env.MONAPAY_BASE_URL || current.baseUrl,
+      };
+      const client = makeClient(credentials, context.clientFactory);
+      const profile = await client.me();
+      const path = await writeCredentials(credentials, { env: context.env });
+      print({ message: 'Xác thực thành công.', name: profile?.name, username: profile?.username, credentials: path }, {
+        json: flags.json,
+        stdout: context.stdout,
+      });
+      return;
+    }
     const username = flags.username || context.env.MONAPAY_USERNAME
       || await prompt.ask(`Username${current.username ? ` [${current.username}]` : ''}: `)
       || current.username;
@@ -171,7 +201,11 @@ async function runKeys(client, action, flags, positionals, context) {
     const result = await client.keys.generate(flags.name || 'CLI Key');
     if (result?.client_secret) {
       const credentials = await readCredentials({ env: context.env });
-      await writeCredentials({ ...credentials, clientSecret: result.client_secret }, { env: context.env });
+      await writeCredentials({
+        ...credentials,
+        ...(result.client_id ? { clientId: result.client_id } : {}),
+        clientSecret: result.client_secret,
+      }, { env: context.env });
     }
     return result;
   }
